@@ -15,10 +15,10 @@
 #define TIMERFREQ 100
  
 #ifndef WIDTH
-#  define WIDTH 640
+#  define WIDTH 250
 #endif
 #ifndef HEIGHT
-#  define HEIGHT 480
+#  define HEIGHT 250
 #endif
 #ifndef BPP
 #  define BPP 32
@@ -81,6 +81,7 @@ static uint32_t simulate(uint32_t iv, void *p)
 	break;
       case VOID:
 	*(field[swapu^1] + j*WIDTH + i) = prand() > prob_p ? VOID : TREE;
+        // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
 	if (burning_neighbor(i, j))
@@ -99,9 +100,12 @@ static uint32_t simulate(uint32_t iv, void *p)
   return iv;
 }
  
+
 // the field is a "part" of an infinite "void" region
 #define NB(I,J) (((I)<WIDTH)&&((I)>=0)&&((J)<HEIGHT)&&((J)>=0) \
 		 ? (*(field[swapu] + (J)*WIDTH + (I)) == BURNING) : false)
+
+// look at neighbor formula, does it match this?
 bool burning_neighbor(int i, int j)
 {
   return NB(i-1,j-1) || NB(i-1, j) || NB(i-1, j+1) ||
