@@ -5,6 +5,7 @@
 #include <string.h>
 #include <pthread.h>
  
+// updated for Ubuntu added SDL/ dir 
 #include <SDL/SDL.h>
  
 // defaults
@@ -13,12 +14,15 @@
 #define PROB_P 0.001
  
 #define TIMERFREQ 100
+
+#define SMOKEJUMPERS_K 10
  
 #ifndef WIDTH
 #  define WIDTH 250
 #endif
 #ifndef HEIGHT
 #  define HEIGHT 250
+#  define MAXSIZE WIDTH*HEIGHT
 #endif
 #ifndef BPP
 #  define BPP 32
@@ -30,6 +34,7 @@
  
 uint8_t *field[2], swapu;
 double prob_f = PROB_F, prob_p = PROB_P, prob_tree = PROB_TREE; 
+unsigned int *fire_log;
  
 enum cell_state { 
   VOID, TREE, BURNING
@@ -46,11 +51,16 @@ void init_field(void)
 {
   int i, j;
   swapu = 0;
+
   for(i = 0; i < WIDTH; i++)
   {
     for(j = 0; j < HEIGHT; j++)
     {
-      *(field[0] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+      // original populated with trees
+      // *(field[0] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+       
+      // CS523 proj gl called for Initial state of the model is for all cells be empty
+      *(field[0] + j*WIDTH + i) = VOID;
     }
   }
 }
@@ -60,7 +70,8 @@ bool burning_neighbor(int, int);
 pthread_mutex_t synclock = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t simulate(uint32_t iv, void *p)
 {
-  int i, j;
+  int i, j, k = 0;
+  int fl_log;
  
   /*
     Since this is called by SDL, "likely"(*) in a separated
@@ -70,6 +81,7 @@ static uint32_t simulate(uint32_t iv, void *p)
     The following is an attempt to avoid unpleasant updates.
    */
   pthread_mutex_lock(&synclock);
+  k = 0;
  
   for(i = 0; i < WIDTH; i++) {
     for(j = 0; j < HEIGHT; j++) {
@@ -84,10 +96,21 @@ static uint32_t simulate(uint32_t iv, void *p)
         // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
-	if (burning_neighbor(i, j))
+	if (burning_neighbor(i, j)) {
 	  *(field[swapu^1] + j*WIDTH + i) = BURNING;
-	else
-	  *(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
+          *(fire_log + k) = j*WIDTH + i;
+            k++;
+              printf("k = %i at %i\n", k, j*WIDTH+i);
+          }
+          else {
+	    //*(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
+            if ( prand() < prob_f ) {
+	      *(field[swapu^1] + j*WIDTH + i) = BURNING;
+              *(fire_log + k) = j*WIDTH + i;
+              k++;
+              printf("k = %i at %i\n", k, j*WIDTH+i);
+            } else *(field[swapu^1] + j*WIDTH + i) = TREE;
+        }
 	break;
       default:
 	fprintf(stderr, "corrupted field\n");
@@ -95,6 +118,7 @@ static uint32_t simulate(uint32_t iv, void *p)
       }
     }
   }
+            //*(fire_log + rand()%SMOKEJUMPERS_K) = j*WIDTH + i;
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
   return iv;
@@ -189,6 +213,9 @@ int main(int argc, char **argv)
   field[1] = malloc(WIDTH*HEIGHT);
   if (field[1] == NULL) { free(field[0]); exit(EXIT_FAILURE); }
  
+  fire_log = malloc(WIDTH*HEIGHT);
+  if (fire_log == NULL) exit(EXIT_FAILURE);
+
   scr = SDL_SetVideoMode(WIDTH, HEIGHT, BPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
   if (scr == NULL) {
     fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
