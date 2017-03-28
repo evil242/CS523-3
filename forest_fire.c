@@ -225,7 +225,7 @@ int main(int argc, char **argv)
   field[1] = malloc(WIDTH*HEIGHT);
   if (field[1] == NULL) { free(field[0]); exit(EXIT_FAILURE); }
  
-  fire_log = malloc(WIDTH*HEIGHT);
+  fire_log = malloc(WIDTH*HEIGHT*sizeof(unsigned int));
   if (fire_log == NULL) exit(EXIT_FAILURE);
 
   scr = SDL_SetVideoMode(WIDTH, HEIGHT, BPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
@@ -234,9 +234,9 @@ int main(int argc, char **argv)
     free(field[0]); free(field[1]);
     exit(EXIT_FAILURE);
   }
- 
+
   init_field();
- 
+
   tid = SDL_AddTimer(TIMERFREQ, simulate, NULL); // suppose success
   running = true;
  
