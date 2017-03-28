@@ -34,6 +34,7 @@
  
 uint8_t *field[2], swapu;
 double prob_f = PROB_F, prob_p = PROB_P, prob_tree = PROB_TREE; 
+int smokejumpers_k = SMOKEJUMPERS_K;
 unsigned int *fire_log;
  
 enum cell_state { 
@@ -61,6 +62,7 @@ void init_field(void)
        
       // CS523 proj gl called for Initial state of the model is for all cells be empty
       *(field[0] + j*WIDTH + i) = VOID;
+      *(fire_log + j*WIDTH + i) = 0;
     }
   }
 }
@@ -70,8 +72,8 @@ bool burning_neighbor(int, int);
 pthread_mutex_t synclock = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t simulate(uint32_t iv, void *p)
 {
-  int i, j, k = 0;
-  int fl_log;
+  int i, j, k;
+  int temp, loc;
  
   /*
     Since this is called by SDL, "likely"(*) in a separated
@@ -81,8 +83,8 @@ static uint32_t simulate(uint32_t iv, void *p)
     The following is an attempt to avoid unpleasant updates.
    */
   pthread_mutex_lock(&synclock);
+
   k = 0;
- 
   for(i = 0; i < WIDTH; i++) {
     for(j = 0; j < HEIGHT; j++) {
       enum cell_state s = *(field[swapu] + j*WIDTH + i);
@@ -99,16 +101,16 @@ static uint32_t simulate(uint32_t iv, void *p)
 	if (burning_neighbor(i, j)) {
 	  *(field[swapu^1] + j*WIDTH + i) = BURNING;
           *(fire_log + k) = j*WIDTH + i;
+            printf("new fires no. %i at %i\n", k, j*WIDTH+i);
             k++;
-              printf("k = %i at %i\n", k, j*WIDTH+i);
           }
           else {
 	    //*(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
             if ( prand() < prob_f ) {
 	      *(field[swapu^1] + j*WIDTH + i) = BURNING;
-              *(fire_log + k) = j*WIDTH + i;
-              k++;
-              printf("k = %i at %i\n", k, j*WIDTH+i);
+              /* *(fire_log + k) = j*WIDTH + i;
+              printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+              k++;*/
             } else *(field[swapu^1] + j*WIDTH + i) = TREE;
         }
 	break;
@@ -118,7 +120,17 @@ static uint32_t simulate(uint32_t iv, void *p)
       }
     }
   }
-            //*(fire_log + rand()%SMOKEJUMPERS_K) = j*WIDTH + i;
+  k--;
+  for (i = 0; i < smokejumpers_k && k >= 0; i++) {
+     temp = k > 0 ? rand()%k : 0;
+     loc = *(fire_log + temp);
+     *(field[swapu^1] + loc) = TREE;
+     printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
+     *(fire_log + temp) = *(fire_log + k);
+     *(fire_log + k) = 0;
+     k--;
+  }
+
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
   return iv;
