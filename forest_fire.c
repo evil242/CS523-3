@@ -15,7 +15,7 @@
  
 #define TIMERFREQ 100
 
-#define SMOKEJUMPERS_K 10
+#define SMOKEJUMPERS_K 20
  
 #ifndef WIDTH
 #  define WIDTH 250
@@ -35,6 +35,8 @@
 uint8_t *field[2], swapu;
 double prob_f = PROB_F, prob_p = PROB_P, prob_tree = PROB_TREE; 
 int smokejumpers_k = SMOKEJUMPERS_K;
+int num_fires = 0;
+int num_trees = 0;
 unsigned int *fire_log;
  
 enum cell_state { 
@@ -83,6 +85,21 @@ static uint32_t simulate(uint32_t iv, void *p)
     The following is an attempt to avoid unpleasant updates.
    */
   pthread_mutex_lock(&synclock);
+  num_trees = 0;
+  k = num_fires;
+  for (i = 0; i < smokejumpers_k && k >= 0; i++) {
+     temp = k > 0 ? rand()%k : 0;
+     loc = *(fire_log + temp);
+     *(field[swapu] + loc) = TREE;
+     printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
+     *(fire_log + temp) = *(fire_log + k);
+     *(fire_log + k) = 0;
+     k--;
+  }
+  for ( ; k >= 0; k-- )  {
+     *(fire_log + k) = 0;
+  }
+
 
   k = 0;
   for(i = 0; i < WIDTH; i++) {
@@ -98,10 +115,11 @@ static uint32_t simulate(uint32_t iv, void *p)
         // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
+        num_trees++;
 	if (burning_neighbor(i, j)) {
 	  *(field[swapu^1] + j*WIDTH + i) = BURNING;
           *(fire_log + k) = j*WIDTH + i;
-            printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+            //printf("new fires no. %i at %i\n", k, j*WIDTH+i);
             k++;
           }
           else {
@@ -120,16 +138,8 @@ static uint32_t simulate(uint32_t iv, void *p)
       }
     }
   }
-  k--;
-  for (i = 0; i < smokejumpers_k && k >= 0; i++) {
-     temp = k > 0 ? rand()%k : 0;
-     loc = *(fire_log + temp);
-     *(field[swapu^1] + loc) = TREE;
-     printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
-     *(fire_log + temp) = *(fire_log + k);
-     *(fire_log + k) = 0;
-     k--;
-  }
+  num_fires = k - 1;
+  printf("Number of trees %i, and number of fires %i\n", num_trees, num_fires + 1);
 
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
