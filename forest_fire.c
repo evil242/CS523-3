@@ -14,7 +14,7 @@
  
 #define TIMERFREQ 10
 
-#define SMOKEJUMPERS_K 20
+#define SMOKEJUMPERS_K 50
  
 #ifndef WIDTH
 #  define WIDTH 250
@@ -304,8 +304,9 @@ int main(int argc, char **argv)
       quit = true;
       break;
     }
+  printf("\nlongevity:%d,biomass:%d\n", longevity, biomass);
   }
-  printf("\nlongevity:%d,biomass:%d", longevity, biomass);
+  printf("\nlongevity:%d,biomass:%d\n", longevity, biomass);
   if (running) {
     pthread_mutex_lock(&synclock);
     SDL_RemoveTimer(tid);
