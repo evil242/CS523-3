@@ -9,11 +9,10 @@
 #include <SDL/SDL.h>
  
 // defaults
-#define PROB_TREE 0.55
-#define PROB_F 0.00001
-#define PROB_P 0.001
+#define PROB_TREE 0.0009
+#define PROB_FIRE 0.001
  
-#define TIMERFREQ 100
+#define TIMERFREQ 10
 
 #define SMOKEJUMPERS_K 10
  
@@ -28,19 +27,22 @@
 #  define BPP 32
 #endif
  
+#define MAX_TIMESTEP 5000
+
 #if BPP != 32
   #warning This program could not work with BPP different from 32
 #endif
  
 uint8_t *field[2], swapu;
-double prob_f = PROB_F, prob_p = PROB_P, prob_tree = PROB_TREE; 
+double prob_f = PROB_FIRE, prob_tree = PROB_TREE; 
 int smokejumpers_k = SMOKEJUMPERS_K;
 unsigned int *fire_log;
  
 enum cell_state { 
   VOID, TREE, BURNING
 };
- 
+
+int step = 0, longevity = 0, biomass = 0;
 // simplistic random func to give [0, 1)
 double prand()
 {
@@ -56,15 +58,37 @@ void init_field(void)
   for(i = 0; i < WIDTH; i++)
   {
     for(j = 0; j < HEIGHT; j++)
-    {
-      // original populated with trees
-      // *(field[0] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
-       
+    {     
       // CS523 proj gl called for Initial state of the model is for all cells be empty
-      *(field[0] + j*WIDTH + i) = VOID;
-      *(fire_log + j*WIDTH + i) = 0;
+      field[0][j*WIDTH + i] = VOID;
+      fire_log[j*WIDTH + i] = 0;
     }
   }
+}
+
+
+int avg(int num1, int num2){
+    return (num1 + num2)/2;
+}
+
+
+void update_biomass(uint8_t *field){
+    int i, j, tree_counter = 0;
+    for(i = 0; i < WIDTH; i++)
+        for(j = 0; j < HEIGHT; j++)
+           if(field[j*WIDTH + i] == TREE)
+               tree_counter++;
+    biomass = avg(biomass, tree_counter);
+}
+
+
+bool is_field_empty(uint8_t *field){
+  int i,j;
+  for(i = 0; i < WIDTH; i++)
+      for(j = 0; j < HEIGHT; j++)
+          if(field[j*WIDTH + i] != VOID)
+              return false;
+  return true;
 }
  
 // the "core" of the task: the "forest-fire CA"
@@ -83,49 +107,57 @@ static uint32_t simulate(uint32_t iv, void *p)
     The following is an attempt to avoid unpleasant updates.
    */
   pthread_mutex_lock(&synclock);
-
-  k = 0;
+  step++;
+  longevity++;
+  if(step > 1 && is_field_empty(field[swapu])){
+      printf("\n forest is empty: %d", step);fflush(stdout);
+      step = MAX_TIMESTEP; // in order to exit the main loop
+  }
+  update_biomass(field[swapu]);
+  k = 0; // fire counter
   for(i = 0; i < WIDTH; i++) {
     for(j = 0; j < HEIGHT; j++) {
       enum cell_state s = *(field[swapu] + j*WIDTH + i);
       switch(s)
       {
-      case BURNING:
-	*(field[swapu^1] + j*WIDTH + i) = VOID;
-	break;
-      case VOID:
-	*(field[swapu^1] + j*WIDTH + i) = prand() > prob_p ? VOID : TREE;
-        // should we add if not first tree, prand for 2nd tree?
-	break;
-      case TREE:
-	if (burning_neighbor(i, j)) {
-	  *(field[swapu^1] + j*WIDTH + i) = BURNING;
-          *(fire_log + k) = j*WIDTH + i;
-            printf("new fires no. %i at %i\n", k, j*WIDTH+i);
-            k++;
-          }
-          else {
-	    //*(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
-            if ( prand() < prob_f ) {
-	      *(field[swapu^1] + j*WIDTH + i) = BURNING;
-              /* *(fire_log + k) = j*WIDTH + i;
-              printf("new fires no. %i at %i\n", k, j*WIDTH+i);
-              k++;*/
-            } else *(field[swapu^1] + j*WIDTH + i) = TREE;
-        }
-	break;
-      default:
-	fprintf(stderr, "corrupted field\n");
-	break;
+          case BURNING:
+	         *(field[swapu^1] + j*WIDTH + i) = VOID;
+	         break;
+          case VOID:
+	         *(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+             // should we add if not first tree, prand for 2nd tree?
+	         break;
+          case TREE:
+	         if (burning_neighbor(i, j)) {
+	             *(field[swapu^1] + j*WIDTH + i) = BURNING;
+                 *(fire_log + k) = j*WIDTH + i;
+                 //printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+                 k++;
+             }
+             else {
+	             //*(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
+                 if ( prand() < prob_f ) {
+	                 *(field[swapu^1] + j*WIDTH + i) = BURNING;
+                     *(fire_log + k) = j*WIDTH + i;
+                     //printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+                     k++;
+                 } 
+                 else *(field[swapu^1] + j*WIDTH + i) = TREE;
+             }
+	         break;
+          default:
+	          fprintf(stderr, "corrupted field\n");
+	          break;
       }
     }
   }
+  // fire fighter
   k--;
   for (i = 0; i < smokejumpers_k && k >= 0; i++) {
      temp = k > 0 ? rand()%k : 0;
      loc = *(fire_log + temp);
      *(field[swapu^1] + loc) = TREE;
-     printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
+     //printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
      *(fire_log + temp) = *(fire_log + k);
      *(fire_log + k) = 0;
      k--;
@@ -191,31 +223,11 @@ int main(int argc, char **argv)
   // add variability to the simulation
   srand(time(NULL));
  
-  // we can change prob_f and prob_p
-  // prob_f prob of spontaneous ignition
-  // prob_p prob of birth of a tree
-  double *p;
-  for(argv++, argc--; argc > 0; argc--, argv++)
-  {
-    if ( strcmp(*argv, "prob_f") == 0 && argc > 1 )
-    {
-      p = &prob_f;
-    } else if ( strcmp(*argv, "prob_p") == 0 && argc > 1 ) {
-      p = &prob_p;
-    } else if ( strcmp(*argv, "prob_tree") == 0 && argc > 1 ) {
-      p = &prob_tree;
-    } else  continue;
+  // we can change prob_tree, but prob_f is fixed
+  prob_tree = atof(argv[1]);
  
- 
-    argv++; argc--;
-    char *s = NULL;
-    double t = strtod(*argv, &s);
-    if (s != *argv) *p = t;
-  }
- 
-  printf("prob_f %lf\nprob_p %lf\nratio %lf\nprob_tree %lf\n", 
-	 prob_f, prob_p, prob_p/prob_f,
-	 prob_tree);
+  //printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
+	// prob_f, prob_tree, prob_tree/prob_f);
  
   if ( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0 ) return EXIT_FAILURE;
   atexit(SDL_Quit);
@@ -243,7 +255,7 @@ int main(int argc, char **argv)
   event->type = SDL_VIDEOEXPOSE;
   SDL_PushEvent(event);
  
-  while(SDL_WaitEvent(event) && !quit)
+  while((SDL_WaitEvent(event) && !quit) && step < MAX_TIMESTEP)
   {
     switch(event->type)
     {
@@ -280,7 +292,7 @@ int main(int argc, char **argv)
       break;
     }
   }
- 
+  printf("\nlongevity:%d,biomass:%d", longevity, biomass);
   if (running) {
     pthread_mutex_lock(&synclock);
     SDL_RemoveTimer(tid);
