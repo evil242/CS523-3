@@ -116,7 +116,7 @@ static uint32_t simulate(uint32_t iv, void *p)
      temp = k > 0 ? rand()%k : 0;
      loc = *(fire_log + temp);
      *(field[swapu] + loc) = TREE;
-     printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
+     //printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
      *(fire_log + temp) = *(fire_log + k);
      *(fire_log + k) = 0;
      k--;
@@ -172,7 +172,7 @@ static uint32_t simulate(uint32_t iv, void *p)
     }
   }
   num_fires = k - 1;
-  printf("Number of trees %i, and number of fires %i\n", num_trees, num_fires + 1);
+  //printf("Number of trees %i, and number of fires %i\n", num_trees, num_fires + 1);
 
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
@@ -235,10 +235,12 @@ int main(int argc, char **argv)
   srand(time(NULL));
  
   // we can change prob_tree, but prob_f is fixed
-  prob_tree = atof(argv[1]);
+  if (argc > 1 ) {
+     prob_tree = atof(argv[1]);
+  } else prob_tree = PROB_TREE;
  
-  //printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
-	// prob_f, prob_tree, prob_tree/prob_f);
+  printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
+	 prob_f, prob_tree, prob_tree/prob_f);
  
   if ( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0 ) return EXIT_FAILURE;
   atexit(SDL_Quit);
