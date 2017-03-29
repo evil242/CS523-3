@@ -109,7 +109,7 @@ static uint32_t simulate(uint32_t iv, void *p)
     The following is an attempt to avoid unpleasant updates.
    */
   pthread_mutex_lock(&synclock);
-
+<<<<<<< HEAD
   num_trees = 0;
   k = num_fires;
   for (i = 0; i < smokejumpers_k && k >= 0; i++) {
@@ -125,6 +125,9 @@ static uint32_t simulate(uint32_t iv, void *p)
      *(fire_log + k) = 0;
   }
 
+
+  k = 0;
+=======
   step++;
   longevity++;
   if(step > 1 && is_field_empty(field[swapu])){
@@ -132,19 +135,19 @@ static uint32_t simulate(uint32_t iv, void *p)
       step = MAX_TIMESTEP; // in order to exit the main loop
   }
   update_biomass(field[swapu]);
-
   k = 0; // fire counter
-
+>>>>>>> 6617bb4fc59f444bb43731c2e8cc708fb149cdb5
   for(i = 0; i < WIDTH; i++) {
     for(j = 0; j < HEIGHT; j++) {
       enum cell_state s = *(field[swapu] + j*WIDTH + i);
       switch(s)
       {
+<<<<<<< HEAD
       case BURNING:
 	*(field[swapu^1] + j*WIDTH + i) = VOID;
 	break;
       case VOID:
-	*(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+	*(field[swapu^1] + j*WIDTH + i) = prand() > prob_p ? VOID : TREE;
         // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
@@ -173,6 +176,50 @@ static uint32_t simulate(uint32_t iv, void *p)
   }
   num_fires = k - 1;
   printf("Number of trees %i, and number of fires %i\n", num_trees, num_fires + 1);
+=======
+          case BURNING:
+	         *(field[swapu^1] + j*WIDTH + i) = VOID;
+	         break;
+          case VOID:
+	         *(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+             // should we add if not first tree, prand for 2nd tree?
+	         break;
+          case TREE:
+	         if (burning_neighbor(i, j)) {
+	             *(field[swapu^1] + j*WIDTH + i) = BURNING;
+                 *(fire_log + k) = j*WIDTH + i;
+                 //printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+                 k++;
+             }
+             else {
+	             //*(field[swapu^1] + j*WIDTH + i) = prand() > prob_f ? TREE : BURNING;
+                 if ( prand() < prob_f ) {
+	                 *(field[swapu^1] + j*WIDTH + i) = BURNING;
+                     *(fire_log + k) = j*WIDTH + i;
+                     //printf("new fires no. %i at %i\n", k, j*WIDTH+i);
+                     k++;
+                 } 
+                 else *(field[swapu^1] + j*WIDTH + i) = TREE;
+             }
+	         break;
+          default:
+	          fprintf(stderr, "corrupted field\n");
+	          break;
+      }
+    }
+  }
+  // fire fighter
+  k--;
+  for (i = 0; i < smokejumpers_k && k >= 0; i++) {
+     temp = k > 0 ? rand()%k : 0;
+     loc = *(fire_log + temp);
+     *(field[swapu^1] + loc) = TREE;
+     //printf("FF %i working on Fire %i at %i made TREE\n",i,temp,loc);
+     *(fire_log + temp) = *(fire_log + k);
+     *(fire_log + k) = 0;
+     k--;
+  }
+>>>>>>> 6617bb4fc59f444bb43731c2e8cc708fb149cdb5
 
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
