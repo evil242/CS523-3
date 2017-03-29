@@ -14,7 +14,7 @@
  
 #define TIMERFREQ 10
 
-#define SMOKEJUMPERS_K 50
+#define SMOKEJUMPERS_K 100
  
 #ifndef WIDTH
 #  define WIDTH 250
@@ -133,6 +133,8 @@ static uint32_t simulate(uint32_t iv, void *p)
   }
   update_biomass(field[swapu]);
 
+  printf("longevity:%d,biomass:%d\n", longevity, biomass);
+
   k = 0; // fire counter
 
   for(i = 0; i < WIDTH; i++) {
@@ -237,6 +239,9 @@ int main(int argc, char **argv)
   // we can change prob_tree, but prob_f is fixed
   if (argc > 1 ) {
      prob_tree = atof(argv[1]);
+     if (argc > 2 ) {
+       smokejumpers_k = atoi(argv[2]);
+     } else smokejumpers_k = SMOKEJUMPERS_K;
   } else prob_tree = PROB_TREE;
  
   printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
@@ -304,7 +309,6 @@ int main(int argc, char **argv)
       quit = true;
       break;
     }
-  printf("\nlongevity:%d,biomass:%d\n", longevity, biomass);
   }
   printf("\nlongevity:%d,biomass:%d\n", longevity, biomass);
   if (running) {
