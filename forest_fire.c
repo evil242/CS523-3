@@ -39,7 +39,8 @@ int smokejumpers_k = SMOKEJUMPERS_K;
 int num_fires = 0;
 int num_trees = 0;
 unsigned int *fire_log;
- 
+bool gui_enabled = true;
+
 enum cell_state { 
   VOID, TREE, BURNING
 };
@@ -133,7 +134,7 @@ static uint32_t simulate(uint32_t iv, void *p)
   }
   update_biomass(field[swapu]);
 
-  printf("longevity:%d,biomass:%d\n", longevity, biomass);
+  //printf("longevity:%d,biomass:%d\n", longevity, biomass);
 
   k = 0; // fire counter
 
@@ -242,10 +243,14 @@ int main(int argc, char **argv)
      if (argc > 2 ) {
        smokejumpers_k = atoi(argv[2]);
      } else smokejumpers_k = SMOKEJUMPERS_K;
+     if (argc > 3 ) {
+       if(atoi(argv[3]) == 0)
+           gui_enabled = false;
+     } else gui_enabled = true;
   } else prob_tree = PROB_TREE;
  
-  printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
-	 prob_f, prob_tree, prob_tree/prob_f);
+  //printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
+	// prob_f, prob_tree, prob_tree/prob_f);
  
   if ( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0 ) return EXIT_FAILURE;
   atexit(SDL_Quit);
@@ -257,14 +262,15 @@ int main(int argc, char **argv)
  
   fire_log = malloc(WIDTH*HEIGHT*sizeof(unsigned int));
   if (fire_log == NULL) exit(EXIT_FAILURE);
-
-  scr = SDL_SetVideoMode(WIDTH, HEIGHT, BPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
-  if (scr == NULL) {
-    fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
-    free(field[0]); free(field[1]);
-    exit(EXIT_FAILURE);
+  
+  if (gui_enabled){
+      scr = SDL_SetVideoMode(WIDTH, HEIGHT, BPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
+      if (scr == NULL) {
+        fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
+        free(field[0]); free(field[1]);
+        exit(EXIT_FAILURE);
+      }
   }
-
   init_field();
 
   tid = SDL_AddTimer(TIMERFREQ, simulate, NULL); // suppose success
@@ -278,10 +284,12 @@ int main(int argc, char **argv)
     switch(event->type)
     {
     case SDL_VIDEOEXPOSE:
-      while(SDL_LockSurface(scr) != 0) SDL_Delay(1);
-      show(scr);
-      SDL_UnlockSurface(scr);
-      SDL_Flip(scr);
+      if (gui_enabled){
+          while(SDL_LockSurface(scr) != 0) SDL_Delay(1);
+          show(scr);
+          SDL_UnlockSurface(scr);
+          SDL_Flip(scr);
+      }
       event->type = SDL_VIDEOEXPOSE;
       SDL_PushEvent(event);
       break;
