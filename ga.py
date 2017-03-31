@@ -7,6 +7,8 @@ import sys
 import numpy as np
 import os
 import random
+import matplotlib.pyplot as plt
+import collections
 
 # GA Individual class
 class GAIndividual:
@@ -19,9 +21,9 @@ class GAIndividual:
 
 
 # Returns the biomass as fitness
-def biomass_fitness_func(p_m):
+def biomass_fitness_func(p_m, firefighters_number):
    
-    command = "./ff.out  " + str(p_m) + " 0 0" + " > res.txt"
+    command = "./ff.out  " + str(p_m) + " " + str(firefighters_number) + " 0 > res.txt"
     os.system(command)
     res_file = open("res.txt", "r")
     result = res_file.read()
@@ -32,9 +34,9 @@ def biomass_fitness_func(p_m):
 
 
 # Returns the longevity as fitness
-def longevity_fitness_func(p_m):
+def longevity_fitness_func(p_m, firefighters_number):
    
-    command = "./ff.out  " + str(p_m) + " 0 0" + " > res.txt"
+    command = "./ff.out  " + str(p_m) + " " + str(firefighters_number) + " 0 > res.txt"
     os.system(command)
     res_file = open("res.txt", "r")
     result = res_file.read()
@@ -45,12 +47,13 @@ def longevity_fitness_func(p_m):
 
 
 # Returns the fitness value
-def fitness(p_m):
+def fitness(p_m, firefighters_number):
     global fitness_func
     if fitness_func is 'longevity':
-        return longevity_fitness_func(p_m)
+        return longevity_fitness_func(p_m, firefighters_number)
     else:
-        return biomass_fitness_func(p_m)
+        return biomass_fitness_func(p_m, firefighters_number)
+
 
 # Returns the average fitness value
 def avg_score(population, pop_size):
@@ -104,9 +107,41 @@ def get_top_two(population, pop_size):
     return population[pop_size-1].genome, population[pop_size-2].genome
 
 
+def plot_landscape():
+    global landscape
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("$p_m$", fontsize=18)
+    ax.set_ylabel("longevity", fontsize=18)
+    plt.plot(list(landscape.keys()), list(landscape.values()), marker='^')
+    plt.show()
+
+def update_fitness_landscape(population, pop_size):
+    global landscape
+    for indv in population:
+        landscape[indv.genome] = indv.fitness
+
+
+## Plot firefighters number vs longevity or firefighters number vs biomass
+def plot_ff_fitness():
+    global fitness_func
+    fitness_list = []
+    p_m = 0.997
+    firefighters_number = range(0,1050,50)
+    for ff in firefighters_number:
+        print "firefighters number:", ff
+        fitness_list.append(fitness(p_m, ff))
+    # plot the result
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("firefighters number", fontsize=18)
+    ax.set_ylabel(fitness_func, fontsize=18)
+    plt.plot(firefighters_number, fitness_list, marker='^')
+    plt.show()
+
 ## GA that tries to find the maximum value
 def GA(pop_size, mutation_rate, num_generations, fitness):
-
+    global landscape
     population = create_a_population(pop_size)
     print "> initial population generated!"
     for generation in range(num_generations):
@@ -120,8 +155,8 @@ def GA(pop_size, mutation_rate, num_generations, fitness):
         print "> Evaluating fitness..."
         # Evaluate fitness
         for i in range(pop_size):
-            population[i].fitness = fitness(population[i].genome)
-        
+            population[i].fitness = fitness(population[i].genome, 0)
+
         print "> Generating the next generation..."
         # Replace bottom half of population
         # with random individuals from the top % half
@@ -132,26 +167,34 @@ def GA(pop_size, mutation_rate, num_generations, fitness):
         print "> Generation " + str(generation+1) + " created!"
         print "> Avg fitness in this generation: " + str(avg_score)
         print "> Top fitness in this generation: " + str(top_score)
+        update_fitness_landscape(population, pop_size)
 
     print "top two p_m:", get_top_two(population, pop_size)
+
 
 
 ''' ******************* MAIN BODY ******************* '''
 pop_size = int(sys.argv[1])
 num_generations = int(sys.argv[2])
-
+landscape = {}
 mutation_rate = 100 # out of 100
-increase_rate = 100 # out of 100
+increase_rate = 50 # out of 100
 
 fitness_func = 'longevity'
 if sys.argv[3] == 'longevity' or sys.argv[3] == 'biomass':
     fitness_func = sys.argv[3]
-    ## Run GA
+    ## Run GA to evolve p_m
     GA(pop_size, mutation_rate, num_generations, fitness)
+    ## Plot landscape
+    landscape = collections.OrderedDict(sorted(landscape.items()))
+    plot_landscape()
+    ## Plot firefighters number vs longevity and firefighters number vs biomass
+    fitness_func = 'biomass'
+    plot_ff_fitness()
+    fitness_func = 'longevity'
+    plot_ff_fitness()
 else:
     print "invalid arguments!"
-
-
 
 
 
