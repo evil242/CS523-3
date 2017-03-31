@@ -10,6 +10,7 @@
  
 // defaults
 #define PROB_TREE 0.0009
+#define PROB_TREE2 0.0
 #define PROB_FIRE 0.001
  
 #define TIMERFREQ 10
@@ -34,7 +35,7 @@
 #endif
  
 uint8_t *field[2], swapu;
-double prob_f = PROB_FIRE, prob_tree = PROB_TREE; 
+double prob_f = PROB_FIRE, prob_tree = PROB_TREE, prob_tree2 = PROB_TREE2; 
 int smokejumpers_k = SMOKEJUMPERS_K;
 int num_fires = 0;
 int num_trees = 0;
@@ -42,7 +43,7 @@ unsigned int *fire_log;
 bool gui_enabled = true;
 
 enum cell_state { 
-  VOID, TREE, BURNING
+  VOID, TREE, TREE2, BURNING
 };
 
 int step = 0, longevity = 0, biomass = 0;
@@ -79,7 +80,7 @@ void update_biomass(uint8_t *field){
     int i, j, tree_counter = 0;
     for(i = 0; i < WIDTH; i++)
         for(j = 0; j < HEIGHT; j++)
-           if(field[j*WIDTH + i] == TREE)
+           if(field[j*WIDTH + i] == TREE || field[j*WIDTH + i] == TREE2 )
                tree_counter++;
     biomass = avg(biomass, tree_counter);
 }
@@ -147,10 +148,16 @@ static uint32_t simulate(uint32_t iv, void *p)
 	*(field[swapu^1] + j*WIDTH + i) = VOID;
 	break;
       case VOID:
-	*(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+	//*(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+           if ( prand() < prob_tree ) {
+	      *(field[swapu^1] + j*WIDTH + i) = TREE;
+           } else if ( prand() < prob_tree2 ) {
+	      *(field[swapu^1] + j*WIDTH + i) = TREE2;
+           } else *(field[swapu^1] + j*WIDTH + i) = VOID;
         // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
+      case TREE2:
         num_trees++;
 	if (burning_neighbor(i, j)) {
 	  *(field[swapu^1] + j*WIDTH + i) = BURNING;
@@ -165,11 +172,11 @@ static uint32_t simulate(uint32_t iv, void *p)
               /* *(fire_log + k) = j*WIDTH + i;
               printf("new fires no. %i at %i\n", k, j*WIDTH+i);
               k++;*/
-            } else *(field[swapu^1] + j*WIDTH + i) = TREE;
+            } else *(field[swapu^1] + j*WIDTH + i) = s;
         }
 	break;
       default:
-	fprintf(stderr, "corrupted field\n");
+	fprintf(stderr, "corrupted field %i\n",s);
 	break;
       }
     }
@@ -217,6 +224,9 @@ void show(SDL_Surface *s)
       case TREE:
 	color = SDL_MapRGBA(f, 0,255,0,255);
 	break;
+      case TREE2:
+	color = SDL_MapRGBA(f, 175,175,50,255);
+	break;
       case BURNING:
 	color = SDL_MapRGBA(f, 255,0,0,255);
 	break;
@@ -247,6 +257,9 @@ int main(int argc, char **argv)
        if(atoi(argv[3]) == 0)
            gui_enabled = false;
      } else gui_enabled = true;
+     if ( argc > 4) {
+        prob_tree2 = atof(argv[4]);
+     } else prob_tree2 = PROB_TREE2;
   } else prob_tree = PROB_TREE;
  
   //printf("prob_f %lf\nprob_tree %lf\nratio %lf\n\n", 
