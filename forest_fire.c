@@ -149,11 +149,13 @@ static uint32_t simulate(uint32_t iv, void *p)
 	break;
       case VOID:
 	//*(field[swapu^1] + j*WIDTH + i) = prand() > prob_tree ? VOID : TREE;
+           *(field[swapu^1] + j*WIDTH + i) = VOID;
            if ( prand() < prob_tree ) {
 	      *(field[swapu^1] + j*WIDTH + i) = TREE;
-           } else if ( prand() < prob_tree2 ) {
+           } 
+           if ( prand() < prob_tree2 ) {
 	      *(field[swapu^1] + j*WIDTH + i) = TREE2;
-           } else *(field[swapu^1] + j*WIDTH + i) = VOID;
+           } 
         // should we add if not first tree, prand for 2nd tree?
 	break;
       case TREE:
