@@ -184,7 +184,7 @@ static uint32_t simulate(uint32_t iv, void *p)
     }
   }
   num_fires = k - 1;
-  //printf("Number of trees %i, and number of fires %i\n", num_trees, num_fires + 1);
+  printf("Number of trees %i, average %i, and number of fires %i\n", num_trees, biomass, num_fires + 1);
 
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
