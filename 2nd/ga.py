@@ -186,7 +186,7 @@ num_generations = int(sys.argv[2])
 landscape = {}
 mutation_rate = 100 # out of 100
 increase_rate = 50 # out of 100
-p2tree = 0.005
+p2tree = 0.05
 
 fitness_func = 'longevity'
 if sys.argv[3] == 'longevity' or sys.argv[3] == 'biomass':

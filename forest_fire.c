@@ -129,11 +129,6 @@ static uint32_t simulate(uint32_t iv, void *p)
 
   step++;
   longevity++;
-  if(step > 1 && is_field_empty(field[swapu])){
-      printf("\n forest is empty: %d", step);fflush(stdout);
-      step = MAX_TIMESTEP; // in order to exit the main loop
-  }
-  update_biomass(field[swapu]);
 
   //printf("longevity:%d,biomass:%d\n", longevity, biomass);
 
@@ -184,7 +179,13 @@ static uint32_t simulate(uint32_t iv, void *p)
     }
   }
   num_fires = k - 1;
-  printf("Number of trees %i, average %i, and number of fires %i\n", num_trees, biomass, num_fires + 1);
+  //printf("longevity: %i :curr num_trees: %i :biomass: %i :num_fires: %i\n", longevity, num_trees, biomass, num_fires + 1);
+
+  update_biomass(field[swapu]);
+  if(step > 1 && is_field_empty(field[swapu])){
+      printf("\n forest is empty: %d", step);fflush(stdout);
+      step = MAX_TIMESTEP; // in order to exit the main loop
+  }
 
   swapu ^= 1;
   pthread_mutex_unlock(&synclock);
@@ -311,6 +312,9 @@ int main(int argc, char **argv)
     case SDL_KEYDOWN:
       switch(event->key.keysym.sym)
       {
+      //case SDLK_SPACE:
+	//getchar();
+	//break;
       case SDLK_q:
 	quit = true;
 	break;
